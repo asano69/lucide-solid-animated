@@ -7,3 +7,7 @@ Every icon self-animates when a pointer hovers over it, with no setup required: 
 ---
 
 - https://github.com/lucide-icons/lucide/tree/main/packages/lucide-solid
+- https://www.movingicons.dev/icons
+- https://github.com/jis3r/icons/blob/main/src/lib/icons/
+- https://lucide-animated.com/
+- https://github.com/pqoqubbw/icons/tree/main/icons

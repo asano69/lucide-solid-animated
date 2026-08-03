@@ -20,9 +20,6 @@ export default createAnimatedIcon({
     </>
   ),
   css: `
-    .lucide-solid-animated-alarm-clock {
-      overflow: visible;
-    }
     .lucide-solid-animated-alarm-clock path {
       transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }

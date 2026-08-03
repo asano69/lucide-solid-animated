@@ -109,6 +109,7 @@ export function createAnimatedIcon(options: AnimatedIconOptions) {
         width={size()}
         height={size()}
         viewBox={defaultAttributes.viewBox}
+        overflow="visible"
         fill={defaultAttributes.fill}
         stroke={local.color ?? globalProps.color ?? defaultAttributes.stroke}
         stroke-width={

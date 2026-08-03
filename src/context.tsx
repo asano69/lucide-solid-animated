@@ -1,4 +1,5 @@
 import { createContext, splitProps, useContext, type JSXElement } from "solid-js";
+import defaultAttributes from "./defaultAttributes";
 
 export interface LucideContextValue {
   size?: number | string;
@@ -9,9 +10,9 @@ export interface LucideContextValue {
 }
 
 export const LucideContext = createContext<LucideContextValue>({
-  size: 24,
-  color: "currentColor",
-  strokeWidth: 2,
+  size: defaultAttributes.width,
+  color: defaultAttributes.stroke,
+  strokeWidth: defaultAttributes["stroke-width"],
   absoluteStrokeWidth: false,
   class: "",
 });

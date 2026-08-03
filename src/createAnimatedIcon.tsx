@@ -1,10 +1,9 @@
-import { createSignal, onCleanup, splitProps, useContext } from "solid-js";
+import { createSignal, splitProps, useContext } from "solid-js";
 import type { JSX } from "solid-js";
 import type { IconProps } from "./types";
 import { injectIconStyle } from "./styleInjector";
 import { LucideContext } from "./context";
-
-const ANIMATION_RESET_MS = 600;
+import defaultAttributes from "./defaultAttributes";
 
 export interface AnimatedIconOptions {
   /** Unique icon name; used for the base class and as the style-injection key */
@@ -18,6 +17,14 @@ export interface AnimatedIconOptions {
   paths: () => JSX.Element;
   /** This icon's keyframes/animation rule, injected once per icon name */
   css: string;
+  /**
+   * Hover behavior for this icon:
+   * - "one-shot" (default): a single animation plays once per hover, and
+   *   resets as soon as the CSS animation ends (so hovering again retriggers it).
+   * - "hold": the animation keeps running for as long as the pointer stays
+   *   over the icon, and stops on mouseleave.
+   */
+  trigger?: "one-shot" | "hold";
 }
 
 /** True if the caller already supplied their own accessible name/hidden state */
@@ -31,7 +38,7 @@ function hasA11yProp(rest: Record<string, unknown>): boolean {
  * handling, prop forwarding, and style injection are shared here.
  */
 export function createAnimatedIcon(options: AnimatedIconOptions) {
-  const { name, paths, css } = options;
+  const { name, paths, css, trigger = "one-shot" } = options;
   const baseClass = `lucide-solid-animated lucide-solid-animated-${name}`;
 
   injectIconStyle(name, css);
@@ -47,51 +54,76 @@ export function createAnimatedIcon(options: AnimatedIconOptions) {
       "classList",
       "children",
       "onMouseEnter",
+      "onMouseLeave",
+      "onAnimationEnd",
     ]);
 
     const globalProps = useContext(LucideContext);
 
     const [hoverAnimate, setHoverAnimate] = createSignal(false);
-    let resetTimer: ReturnType<typeof setTimeout> | undefined;
 
+    // `animate` is an external trigger and is OR-ed with the internal hover
+    // state, so a parent can play the same animation programmatically.
     const isAnimating = () => (local.animate ?? false) || hoverAnimate();
-    const size = () => local.size ?? globalProps.size ?? 24;
-    const strokeWidth = () => local.strokeWidth ?? globalProps.strokeWidth ?? 2;
+    const size = () => local.size ?? globalProps.size ?? defaultAttributes.width;
+    const strokeWidth = () =>
+      local.strokeWidth ?? globalProps.strokeWidth ?? defaultAttributes["stroke-width"];
 
-    // Simplification: only the plain-function form of onMouseEnter is
+    // Simplification: only the plain-function form of these handlers is
     // forwarded here (not Solid's [handler, data] tuple form), since icons
     // are expected to be simple leaf components.
     function handleMouseEnter(event: MouseEvent) {
-      if (!isAnimating()) {
+      if (trigger === "hold" || !isAnimating()) {
         setHoverAnimate(true);
-        resetTimer = setTimeout(() => setHoverAnimate(false), ANIMATION_RESET_MS);
       }
       if (typeof local.onMouseEnter === "function") {
         (local.onMouseEnter as (e: MouseEvent) => void)(event);
       }
     }
 
-    onCleanup(() => clearTimeout(resetTimer));
+    // Only "hold" icons need to stop on mouseleave; "one-shot" icons already
+    // reset themselves via handleAnimationEnd below.
+    function handleMouseLeave(event: MouseEvent) {
+      if (trigger === "hold") {
+        setHoverAnimate(false);
+      }
+      if (typeof local.onMouseLeave === "function") {
+        (local.onMouseLeave as (e: MouseEvent) => void)(event);
+      }
+    }
+
+    // Only "one-shot" icons reset here; "hold" icons keep animating until
+    // mouseleave regardless of how many animation iterations have played.
+    function handleAnimationEnd(event: AnimationEvent) {
+      if (trigger === "one-shot") {
+        setHoverAnimate(false);
+      }
+      if (typeof local.onAnimationEnd === "function") {
+        (local.onAnimationEnd as (e: AnimationEvent) => void)(event);
+      }
+    }
 
     return (
       <svg
-        xmlns="http://www.w3.org/2000/svg"
+        xmlns={defaultAttributes.xmlns}
         width={size()}
         height={size()}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={local.color ?? globalProps.color ?? "currentColor"}
+        viewBox={defaultAttributes.viewBox}
+        fill={defaultAttributes.fill}
+        stroke={local.color ?? globalProps.color ?? defaultAttributes.stroke}
         stroke-width={
           (local.absoluteStrokeWidth ?? globalProps.absoluteStrokeWidth)
             ? (Number(strokeWidth()) * 24) / Number(size())
             : strokeWidth()
         }
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        stroke-linecap={defaultAttributes["stroke-linecap"]}
+        stroke-linejoin={defaultAttributes["stroke-linejoin"]}
         class={[baseClass, globalProps.class, local.class].filter(Boolean).join(" ")}
         classList={{ animate: isAnimating(), ...local.classList }}
         aria-hidden={!local.children && !hasA11yProp(rest) ? "true" : undefined}
         onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onAnimationEnd={handleAnimationEnd}
         {...rest}
       >
         {paths()}

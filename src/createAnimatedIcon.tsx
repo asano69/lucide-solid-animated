@@ -1,7 +1,8 @@
-import { createSignal, onCleanup, splitProps } from "solid-js";
+import { createSignal, onCleanup, splitProps, useContext } from "solid-js";
 import type { JSX } from "solid-js";
 import type { IconProps } from "./types";
 import { injectIconStyle } from "./styleInjector";
+import { LucideContext } from "./context";
 
 const ANIMATION_RESET_MS = 600;
 
@@ -17,6 +18,11 @@ export interface AnimatedIconOptions {
   paths: () => JSX.Element;
   /** This icon's keyframes/animation rule, injected once per icon name */
   css: string;
+}
+
+/** True if the caller already supplied their own accessible name/hidden state */
+function hasA11yProp(rest: Record<string, unknown>): boolean {
+  return "aria-label" in rest || "aria-labelledby" in rest || "aria-hidden" in rest;
 }
 
 /**
@@ -35,16 +41,22 @@ export function createAnimatedIcon(options: AnimatedIconOptions) {
       "color",
       "size",
       "strokeWidth",
+      "absoluteStrokeWidth",
       "animate",
       "class",
       "classList",
+      "children",
       "onMouseEnter",
     ]);
+
+    const globalProps = useContext(LucideContext);
 
     const [hoverAnimate, setHoverAnimate] = createSignal(false);
     let resetTimer: ReturnType<typeof setTimeout> | undefined;
 
     const isAnimating = () => (local.animate ?? false) || hoverAnimate();
+    const size = () => local.size ?? globalProps.size ?? 24;
+    const strokeWidth = () => local.strokeWidth ?? globalProps.strokeWidth ?? 2;
 
     // Simplification: only the plain-function form of onMouseEnter is
     // forwarded here (not Solid's [handler, data] tuple form), since icons
@@ -64,18 +76,21 @@ export function createAnimatedIcon(options: AnimatedIconOptions) {
     return (
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        width={local.size ?? 24}
-        height={local.size ?? 24}
+        width={size()}
+        height={size()}
         viewBox="0 0 24 24"
         fill="none"
-        stroke={local.color ?? "currentColor"}
-        stroke-width={local.strokeWidth ?? 2}
+        stroke={local.color ?? globalProps.color ?? "currentColor"}
+        stroke-width={
+          (local.absoluteStrokeWidth ?? globalProps.absoluteStrokeWidth)
+            ? (Number(strokeWidth()) * 24) / Number(size())
+            : strokeWidth()
+        }
         stroke-linecap="round"
         stroke-linejoin="round"
-        role="img"
-        aria-label={name}
-        class={`${baseClass} ${local.class ?? ""}`.trim()}
+        class={[baseClass, globalProps.class, local.class].filter(Boolean).join(" ")}
         classList={{ animate: isAnimating(), ...local.classList }}
+        aria-hidden={!local.children && !hasA11yProp(rest) ? "true" : undefined}
         onMouseEnter={handleMouseEnter}
         {...rest}
       >

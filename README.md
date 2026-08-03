@@ -1,1 +1,1 @@
-# solid-moving-icons
+# lucide-solid-animated
